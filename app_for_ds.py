@@ -1,13 +1,24 @@
 import streamlit as st 
 import pandas as pd
-from helper_func import plot_chart, generate_report_from_chart
-import io
+from helper_func import plot_chart, generate_report_from_chart, display_report, generate_report_pdf, refresh_session, remove_chart
+import os
+from PIL import Image
+from streamlit_js_eval import streamlit_js_eval
+from datetime import datetime, timezone
 
 # Title of the app
 st.title("Data Visualization and Forecasting App with Streamlit")
 
 # File Uploader
 uploaded_file = st.file_uploader("Upload your data", type=["csv"])
+
+charts_folder = "charts"
+
+element_num = 0
+
+if st.button("Refresh Session"):
+    refresh_session(charts_folder)
+    streamlit_js_eval(js_expressions="parent.window.location.reload()")
 
 if uploaded_file is not None:
     data = pd.read_csv(uploaded_file)
@@ -51,9 +62,22 @@ if uploaded_file is not None:
             ["Line Chart", "Bar Chart", "Scatter Plot", "Pie Chart"]
         )
         
-        chart = plot_chart(chart_type, aggregated_data, category_col, numeric_col)
+        if st.button("Plot Graph"):
+            chart = plot_chart(chart_type, aggregated_data, category_col, numeric_col)
         
-        if st.button("Generated Report"):
-            report = generate_report_from_chart("chart.png")
+        for filename in os.listdir(charts_folder):
+            if filename.endswith(('.png', '.jpg', '.jpeg')):
+                file_path = os.path.join(charts_folder, filename)
+                
+                image = Image.open(file_path)
+                st.image(image, caption=filename, use_column_width=True)
+                element_num += 1
+                if st.button("Remove chart", key=element_num):
+                    remove_chart(file_path)
+                    # streamlit_js_eval(js_expressions="parent.window.location.refresh()")
+        
+        if st.button("Generate Report"):
+            reports = generate_report_from_chart(charts_folder)
             st.subheader("Generated report")
-            st.write(report)
+            display_report(reports)
+            # generate_report_pdf(reports, f"report_{datetime.now(timezone.utc)}")
